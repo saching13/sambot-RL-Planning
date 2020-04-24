@@ -90,7 +90,7 @@ class Experiment:
         self.prev_field = self.curr_field
         self.curr_field = updated_u
 
-    def show_curr_field(self):
+    def show_field_in_loop(self):
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111)
         ax.set_title('Visualizing combined field')
@@ -104,6 +104,30 @@ class Experiment:
             plt.pause(0.05)
             # dur = time.time() - start_time
             # print("Time taken: " + str(dur))
-        
         plt.show()
+    
+    def get_z_dot(self, r):
+        z_k1 = self.curr_field[r[0], r[1]]
+        z_k = self.prev_field[r[0], r[1]]
 
+        return (z_k1 - z_k) / self.dt
+    
+    def get_gradient(self, r):
+        # TODO(sachin): Add gradient computation here
+        return [-1, -1]
+
+    def get_state_vector(self, r):
+        state_vector = []
+        state_vector.append(r[0])
+        state_vector.append(r[1])
+
+        state_vector.append(self.curr_field[r[0], r[1]])
+
+        z_dot = self.get_z_dot(r)
+        state_vector.append(z_dot)
+        
+        z_grad = self.get_gradient(r)
+        state_vector.append(z_grad[0])
+        state_vector.append(z_grad[1])
+
+        return state_vector
