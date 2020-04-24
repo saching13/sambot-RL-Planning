@@ -7,7 +7,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
   metadata = {'render.modes': ['human']}
 
   def __init__(self):
-    self.experiment = Experiment()
+    self.experiment = Experiment(field_vel=[-2, 4])
 
   def step(self, action):
     ...

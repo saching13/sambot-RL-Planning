@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from math import *
 from scipy import io
 import os
+import time
 
 class Experiment:
 
@@ -68,6 +69,26 @@ class Experiment:
 
         combined_field = u_1 + reverse_u_1
         return combined_field
+    
+    def update_field(self):
+        u = self.curr_field.copy()
+        updated_u = self.curr_field.copy()
+        u_k = self.curr_field.copy()
+
+        dx = self.dx
+        dy = self.dy
+        dt = self.dt
+        vx = self.field_vel[0]
+        vy = self.field_vel[1]
+
+        for i in range(1, self.field_size[0] - 1):
+            for j in range(1, self.field_size[1] - 1):
+                k = 1
+                updated_u[j, i] = u[j, i] + k*(dt/dx**2) * ((u_k[j+1, i] + u_k[j-1, i] + u_k[j, i+1] + u_k[j, i-1] - 4*u_k[j,i])) + \
+                    vx*(dt/dx) * ((u_k[j+1, i] - u_k[j, i])) + vy*(dt/dy) * (u_k[j, i+1] - u_k[j, i])
+        
+        self.prev_field = self.curr_field
+        self.curr_field = updated_u
 
     def show_curr_field(self):
         fig = plt.figure(figsize=(8, 8))
@@ -75,7 +96,14 @@ class Experiment:
         ax.set_title('Visualizing combined field')
         ax.set_aspect('equal')
 
-        plt.imshow(self.curr_field, cmap='Blues')
-        plt.colorbar(orientation='vertical')
+        for i in range(100):
+            # start_time = time.time()
+            ax.cla()
+            fig.colorbar(im, orientation='vertical')
+            self.update_field()
+            plt.pause(0.05)
+            # dur = time.time() - start_time
+            # print("Time taken: " + str(dur))
+        
         plt.show()
 
