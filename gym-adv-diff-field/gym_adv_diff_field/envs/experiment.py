@@ -11,7 +11,7 @@ class Experiment:
     def __init__(
             self,
             field_size=[100, 100],
-            field_vel=[-0.4, 0.2],
+            field_vel=[-0.6, 0.8],
             grid_size=[0.8, 0.8],
             init_position=[10, 10],
             dest_position=[90, 90],
@@ -162,20 +162,28 @@ class Experiment:
 
         self.prev_field = self.curr_field
         self.curr_field = updated_u
+        # print(id(self.prev_field))
+        # print(id(self.curr_field))
+        # if np.array_equal(self.prev_field, self.curr_field):
+        #     print("same ---->")
 
     def show_field_in_loop(self):
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111)
         ax.set_title('Visualizing combined field')
         ax.set_aspect('equal')
+        im = ax.imshow(self.curr_field, cmap="Blues")
+        # plt.show()
 
-        for i in range(100):
+        for i in range(500):
             # start_time = time.time()
             ax.cla()
             im = ax.imshow(self.curr_field, cmap="Blues")
             # fig.colorbar(im, orientation='vertical')
             self.update_field()
             plt.pause(0.05)
+            # plt.show()
+
             # dur = time.time() - start_time
             # print("Time taken: " + str(dur))
         plt.show()
