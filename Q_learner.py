@@ -22,8 +22,8 @@ GAMMA = 0.98  # Discount factor
 
 discreteBins_r = 100
 discreteBins_FieldValue = 100
-discreteBins_z_grad = 50
-discreteBins_z_dot = 100
+discreteBins_z_grad = 500
+discreteBins_z_dot = 500
 
 
 class Q_Learner(object):
@@ -32,21 +32,19 @@ class Q_Learner(object):
         self.obs_high = env.observation_space.high
         self.obs_low = env.observation_space.low
         # self.obs_bins = NUM_DISCRETE_BINS  # Number of bins to Discretize each observation dim
-        self.bin_width = self.createObsStateBins(self.obs_high - self.obs_low)
+        self.bin_width = self.create_obs_state_bins(self.obs_high - self.obs_low)
         self.action_shape = env.action_space.n
         # Create a multi-dimensional array (aka. Table) to represent the
         # Q-values
 
-        self.QValues = {}
+        self.Q = {}
 
-        # self.Q = np.zeros((self.obs_bins + 1, self.obs_bins + 1,
-        #                    self.action_shape))  # (51 x 51 x 3)
 
         self.alpha = ALPHA  # Learning rate
         self.gamma = GAMMA  # Discount factor
         self.epsilon = 1.0
 
-    def createObsStateBins(self, space):
+    def create_obs_state_bins(self, space):
         binWidth_r = space[0] / discreteBins_r
         binWidth_fieldValue = space[2] / discreteBins_FieldValue
         binWidth_z_grad = space[3] / discreteBins_z_grad
@@ -54,7 +52,7 @@ class Q_Learner(object):
         binWidth_z_dot = space[5] / discreteBins_z_dot
         return [binWidth_r, binWidth_r, binWidth_fieldValue, binWidth_z_grad, binWidth_z_grad, binWidth_z_dot]
 
-    def discretizeStateVector(self, stateVector):
+    def discretize_state_vector(self, stateVector):
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
         obs = []
         for i in range(self.obs_shape[0]):
@@ -64,40 +62,55 @@ class Q_Learner(object):
     def discretize(self, obs, low, binWidth):
         return ((obs - low) / binWidth).astype(int)
 
-    def getMax(self, discretized_obs, arg):
-        actions = self.Q[discretized_obs] if discretized_obs in self.Q else {}
+    def get_max(self, discretized_obs, arg):
+        # print(type(self.Q))
+        # actions = self.Q[discretized_obs] if discretized_obs in self.Q else {}
+        try:
+            actions = self.Q[tuple(discretized_obs)]
+        except KeyError:
+            return 0
+
         maxArg = 0
-        maxValue = -500
-        if not actions:
-            for action, value in actions.items():
-                if value > maxValue:
-                    maxArg = action
-                    maxValue = value
+        maxValue = -float('inf')
+        for action, value in actions.items():
+            if value > maxValue:
+                maxArg = action
+                maxValue = value
+
         if arg:
             return maxArg
         else:
-            return maxValue if maxValue != -500 else 0
+            return maxValue if maxValue != -float('inf') else 0
 
     def get_action(self, obs):
-        discretized_obs = self.discretizeStateVector(obs)
+        discretized_obs = self.discretize_state_vector(obs)
         # Epsilon-Greedy action selection
         if self.epsilon > EPSILON_MIN:
             self.epsilon -= EPSILON_DECAY
         if np.random.random() > self.epsilon:
-            return self.getMax(discretized_obs, True)
+            return self.get_max(discretized_obs, True)
         else:  # Choose a random action
             return np.random.choice([a for a in range(self.action_shape)])
 
-    def getQValue(self, stateVector, action):
-        Q_action_dict = self.Q[stateVector] if stateVector in self.Q else {}
+    def get_Q_value(self, stateVector, action):
+        Q_action_dict = self.Q[tuple(stateVector)] if tuple(stateVector) in self.Q else {}
         return Q_action_dict[action] if action in Q_action_dict else 0
 
+    def update_q(self, discretized_obs, action, td_error):
+        try:
+            self.Q[tuple(discretized_obs)][action] += self.alpha * td_error
+        except KeyError:
+            self.Q[tuple(discretized_obs)] = {action: self.alpha * td_error}
+
     def learn(self, obs, action, reward, next_obs):
-        discretized_obs = self.discretizeStateVector(obs)
-        discretized_next_obs = self.discretizeStateVector(next_obs)
-        td_target = reward + self.gamma * self.getMax(discretized_next_obs, False)
-        td_error = td_target - self.getQValue(discretized_obs, action)
-        self.Q[discretized_obs][action] += self.alpha * td_error
+        discretized_obs = self.discretize_state_vector(obs)
+        print("Zdot bin:", discretized_obs[-1])
+        discretized_next_obs = self.discretize_state_vector(next_obs)
+        td_target = reward + self.gamma * self.get_max(discretized_next_obs, False)
+        td_error = td_target - self.get_Q_value(discretized_obs, action)
+        self.update_q(discretized_obs, action, td_error)
+        # self.Q[tuple(discretized_obs)][action] += self.alpha * td_error
+
 
 def train(agent, env):
     best_reward = -float('inf')
@@ -109,7 +122,7 @@ def train(agent, env):
             print(episode, "---------->")
         while not done:
             action = agent.get_action(obs)
-            next_obs, reward, done, info = env.step(action)
+            next_obs, reward, done = env.step(action)
             agent.learn(obs, action, reward, next_obs)
             obs = next_obs
             total_reward += reward
@@ -127,7 +140,7 @@ def test(agent, env, policy):
     total_reward = 0.0
     while not done:
         action = policy[agent.discretize(obs)]
-        next_obs, reward, done, info = env.step(action)
+        next_obs, reward, done = env.step(action)
         obs = next_obs
         total_reward += reward
     return total_reward
