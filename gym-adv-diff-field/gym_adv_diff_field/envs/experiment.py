@@ -4,7 +4,7 @@ from math import *
 from scipy import io
 import os
 import time
-
+import copy
 
 class Experiment:
 
@@ -25,8 +25,8 @@ class Experiment:
         self.k2 = 1
         self.view_scope_size = view_scope_size
         self.view_scope = np.ones((self.view_scope_size, self.view_scope_size))
-        self.normalizedViewScope = np.ones((self.view_scope_size, self.view_scope_size))
-        self.init_position = init_position
+        self.normalized_view_scope = np.ones((self.view_scope_size, self.view_scope_size))
+        self.init_position = copy.deepcopy(init_position)
         self.dest_position = dest_position
 
         self.agent_field_state = np.zeros(field_size)
@@ -41,7 +41,7 @@ class Experiment:
         self.fig_field_ax = self.fig_field.add_subplot(111)
         self.fig_field_ax.set_title('Field State')
         self.fig_field_ax.set_aspect('equal')
-    
+
     def set_init_position(self, init_position):
         if (init_position[0] < 0 or init_position[0] > self.field_size[0]) or (
                 init_position[1] < 0 or init_position[1] > self.field_size[1]):
@@ -53,14 +53,12 @@ class Experiment:
                 dest_position[1] < 0 or dest_position[1] > self.field_size[1]):
             print("[ERROR] Destination position out of range")
         self.dest_position = dest_position
-    
+
     def reset(self):
         self.curr_field = self.create_field()
         self.prev_field = np.zeros(self.field_size)
-
         self.trajectory = [self.init_position]
         print("Experiment Reset")
-        
 
     def create_field(self):
         cwd = os.getcwd()
@@ -100,24 +98,41 @@ class Experiment:
 
     def _zmf(self, x, a, b):
         mid = (a + b) / 2
-        if(x <= a): return 1
-        elif(a <= x <= mid): return (1 - 2 * ((x - a)/(b - a))**2)
-        elif(mid <= x <= b): return 2 * ((x - b)/(b - a))**2
-        else :0
+        if (x <= a):
+            return 1
+        elif (a <= x <= mid):
+            return (1 - 2 * ((x - a) / (b - a)) ** 2)
+        elif (mid < x <= b):
+            return 2 * ((x - b) / (b - a)) ** 2
+        else:
+            return 0
 
-    def updateViewScope(self, r):
-        scopeRange = self.view_scope_size//2;
+    def update_view_scope(self, r):
+        scopeRange = self.view_scope_size // 2;
 
         ## TODO: Is x is rows or y is rows. check this later
-        self.view_scope = self.curr_field[r[0] - scopeRange : r[0] + scopeRange, r[1] - scopeRange : r[1] + scopeRange].copy()
+
+        min_index = [r[0] - scopeRange, r[1] - scopeRange]
+        max_index = [r[0] + scopeRange, r[1] + scopeRange]
+
+        if min_index[0] < 0 or min_index[1] < 0 or max_index[0] >= self.field_size[0] or max_index[1] > self.field_size[1]:
+            return False
+
+        self.view_scope = self.curr_field[r[0] - scopeRange: r[0] + scopeRange,
+                          r[1] - scopeRange: r[1] + scopeRange].copy()
         maxVal = self.view_scope.max()
         minVal = self.view_scope.min()
-        self.normalizedViewScope = (self.view_scope - minVal)/(maxVal - minVal)
+        self.normalized_view_scope = (self.view_scope - minVal) / (maxVal - minVal)
 
-    def reward(self, rK, r):
-        distance = self.k2 * np.linalg.norm(r-rK) + self._zmf(self.normalizedViewScope[rK[0],rK[1]], 0, 1)
+        return True
+
+    def reward(self, r_k, r):
+        offset = r - self.view_scope_size // 2
+        view_scope_index = r_k - offset
+        distance = self.k2 * np.linalg.norm(r - r_k) + \
+                   self._zmf(self.normalized_view_scope[view_scope_index[0],
+                                                        view_scope_index[1]], 0, 1)
         return distance
-
 
     def update_field(self):
         u = self.curr_field.copy()
@@ -135,16 +150,15 @@ class Experiment:
                 k = 1
                 updated_u[j,
                           i] = u[j,
-                                 i] + k * (dt / dx**2) * ((u_k[j + 1,
-                                                               i] + u_k[j - 1,
-                                                                        i] + u_k[j,
-                                                                                 i + 1] + u_k[j,
-                                                                                              i - 1] - 4 * u_k[j,
-                                                                                                               i])) + vx * (dt / dx) * ((u_k[j + 1,
-                                                                                                                                             i] - u_k[j,
-                                                                                                                                                      i])) + vy * (dt / dy) * (u_k[j,
-                                                                                                                                                                                   i + 1] - u_k[j,
-                                                                                                                                                                                                i])
+                                 i] + k * (dt / dx ** 2) * ((u_k[j + 1,
+                                                                 i] + u_k[j - 1,
+                                                                          i] + u_k[j,
+                                                                                   i + 1] + u_k[j,
+                                                                                                i - 1] - 4 * u_k[j,
+                                                                                                                 i])) + vx * (dt / dx) * ((u_k[j + 1,i] - u_k[j,
+                                                                 i])) + vy * (dt / dy) * (u_k[j,
+                                                                                              i + 1] - u_k[j,
+                                                                                                           i])
 
         self.prev_field = self.curr_field
         self.curr_field = updated_u
@@ -174,10 +188,10 @@ class Experiment:
 
     def get_gradient(self, r):
 
-        dz_dx = (self.curr_field[r[0] + 1, r[1]] - self.curr_field[r[0] - 1, r[1]]) / 2
-        dz_dy = (self.curr_field[r[0], r[1] + 1] - self.curr_field[r[0], r[0] - 1]) / 2
-        
-        return np.array([dz_dx,dz_dy])/np.linalg.norm([dz_dx,dz_dy])
+        dz_dx = (self.curr_field[r[0] + 1, r[1]] - self.curr_field[r[0] - 1, r[1]]) / (2 * ((r[0] + 1) - (r[0] - 1)))
+        dz_dy = (self.curr_field[r[0], r[1] + 1] - self.curr_field[r[0], r[0] - 1]) / (2 * ((r[1] + 1) - (r[1] - 1)))
+
+        return np.array([dz_dx, dz_dy]) / np.linalg.norm([dz_dx, dz_dy])
 
     def get_state_vector(self, r):
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
@@ -188,7 +202,6 @@ class Experiment:
 
         # adding the field value at r_x, r_y
         state_vector.append(self.curr_field[r[0], r[1]])
-
         # adding the gradient of the field at r_x and r_y
         z_grad = self.get_gradient(r)
         state_vector.append(z_grad[0])
@@ -196,11 +209,11 @@ class Experiment:
 
         # adding the z_dot to state vector
         z_dot = self.get_z_dot(r)
+        print("Z_dot: ", z_dot)
         state_vector.append(z_dot)
 
-
         return state_vector
-    
+
     def show_field_state(self):
         self.fig_field_ax.cla()
         im = self.fig_field_ax.imshow(self.curr_field, cmap="Blues")
