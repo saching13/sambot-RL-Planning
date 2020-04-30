@@ -8,9 +8,10 @@ import gym
 from gym_adv_diff_field.envs.advection_diffusion_field_env import AdvectionDiffusionFieldEnv
 import numpy as np
 import collections
+import warnings
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 50000
+MAX_NUM_EPISODES = 2
 STEPS_PER_EPISODE = 200  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
@@ -38,7 +39,6 @@ class Q_Learner(object):
         # Q-values
 
         self.Q = {}
-
 
         self.alpha = ALPHA  # Learning rate
         self.gamma = GAMMA  # Discount factor
@@ -131,7 +131,31 @@ def train(agent, env):
         print("Episode#:{} reward:{} best_reward:{} eps:{}".format(episode,
                                                                    total_reward, best_reward, agent.epsilon))
     # Return the trained policy
-    return np.argmax(agent.Q, axis=2)
+    return create_policy(agent)
+    
+def create_policy(agent):
+    policy = {}
+    # print(type(action_dict))
+
+    for state, action_dict in agent.Q.items():
+        best_action = 0
+        best_Q_value = -float("inf")
+        for action, Q_value in action_dict.items():
+            if Q_value > best_Q_value:
+                best_Q_value = Q_value
+                best_action = action
+        
+        policy[tuple(state)] = best_action
+    print(type(policy))
+    return policy
+
+def get_policy_action(agent, obs, policy):
+    discritized_obs = agent.discretize_state_vector(obs)
+    try:
+        return policy[tuple(discritized_obs)]
+    except KeyError:
+        warnings.warn("state not found in Policy", KeyError)
+        return 0;
 
 
 def test(agent, env, policy):
@@ -139,7 +163,7 @@ def test(agent, env, policy):
     obs = env.reset()
     total_reward = 0.0
     while not done:
-        action = policy[agent.discretize(obs)]
+        action = get_policy_action(agent, obs, policy)
         next_obs, reward, done = env.step(action)
         obs = next_obs
         total_reward += reward
@@ -151,8 +175,9 @@ if __name__ == "__main__":
     agent = Q_Learner(env)
     learned_policy = train(agent, env)
     # Use the Gym Monitor wrapper to evalaute the agent and record video
-    gym_monitor_path = "./gym_monitor_output"
-    env = gym.wrappers.Monitor(env, gym_monitor_path, force=True)
-    for _ in range(1000):
-        test(agent, env, learned_policy)
+    # gym_monitor_path = "./gym_monitor_output"
+    # env = gym.wrappers.Monitor(env, gym_monitor_path, force=True)
+    for episode in range(1000):
+        reward = test(agent, env, learned_policy)
+        print("Test Episode#:{} reward:{}".format(episode,reward) )
     env.close()
