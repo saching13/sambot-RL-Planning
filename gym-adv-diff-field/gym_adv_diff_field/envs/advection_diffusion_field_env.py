@@ -44,6 +44,10 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         # Define current position as initial position
         self.r = copy.deepcopy(init_position)
         # self.offset = self.init_position - (view_scope_size // 2)
+        self.step_count = 0
+
+        self.num_actions = [0, 0, 0, 0]
+        self.episode_num = 0
 
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
         self.low = np.array([self.min_r_x, self.min_r_y, self.min_field_value,  self.min_z_grad_x, self.min_z_grad_y, self.min_z_dot], dtype = np.float32)
@@ -62,6 +66,9 @@ class AdvectionDiffusionFieldEnv(gym.Env):
     def step(self, action_id):
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
         assert self.action_space.contains(action_id), "%r (%s) invalid" % (action_id, type(action_id))
+
+        self.num_actions[action_id] += 1
+        self.step_count += 1
 
         action = self.action_space_map[action_id]
 
@@ -84,37 +91,50 @@ class AdvectionDiffusionFieldEnv(gym.Env):
             r_new[0] = r_new[0] + 1
 
         # Check if done with learning
-        done = True if r_new == self.experiment.dest_position else False
+        # done = True if r_new == self.experiment.dest_position else False
+
+        # If out of bounds
+        if (r_new[0] < 0 or r_new[0] > self.experiment.field_size[0] or r_new[1] < 0 or r_new[1] > self.experiment.field_size[1]):
+            print(self.num_actions)
+            self.render()
+            return [0, 0, 0, 0, 0, 0], -400, True
         
-        
+        if (self.step_count > 300):
+            print("Number of steps exceeded")
+            self.render()
+            return [0, 0, 0, 0, 0, 0], -400, True
+
         # Update the field
         self.experiment.update_field()
 
         # Get the new state vector (observation) state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
         state_vector = self.experiment.get_state_vector(r_new)
-        self.max_Zdot = max(self.max_Zdot,  abs(state_vector[-1]))
+        # self.max_Zdot = max(self.max_Zdot,  abs(state_vector[-1]))
 
         # print("Max Z dot : ", self.max_Zdot)
 
         # TODO(Deepak): Figure out how to formulate reward
-        view_scope_state = self.experiment.update_view_scope(r_new)
-        reward = self.experiment.reward(np.array(self.r), np.array(r_new))
+        # view_scope_state = self.experiment.update_view_scope(r_new)
+        self.experiment.copy_view_scope(r_new)
+        reward = self.experiment.calculate_reward(r_new)
 
         # Update the robot center location and append trajectory
         self.r = r_new
         # print("(x,y) :", r_new)
         self.experiment.trajectory.append(self.r)
-        if not view_scope_state:
-            done = True
-            reward = -200
-            print("-------------------> resetting due to out of bounds of view scope")
-            print(self.experiment.trajectory)
-            print("--------> printing out trajectory and ")
 
-        print("[r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot] :",  state_vector)
+        # print("[r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot] :",  state_vector)
+        # print("Reward: " + str(reward))
 
         # print("reward: ", reward)
-        if r_new == self.experiment.dest_position: reward = 1000
+        if self.r == self.experiment.dest_position:
+            reward = 1000
+            done = True
+            print(self.num_actions)
+            self.render()
+        else:
+            done = False
+
         return state_vector, reward, done
         
 
@@ -122,12 +142,15 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         self.experiment.reset()
         self.r = self.experiment.init_position
         state_vector = self.experiment.get_state_vector(self.r)
+        self.num_actions = [0, 0, 0, 0]
+        self.step_count = 0
+        self.episode_num += 1
         return state_vector
         
     def render(self, mode='human', close=False):
         print("Render")
         # self.experiment.show_field_in_loop()
-        self.experiment.show_field_state()
+        self.experiment.show_field_state(self.episode_num)
 
     def test_state(self):
         r = [2, 20]

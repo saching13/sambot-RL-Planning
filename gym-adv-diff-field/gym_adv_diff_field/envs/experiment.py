@@ -15,14 +15,19 @@ class Experiment:
             grid_size=[0.8, 0.8],
             init_position=[10, 10],
             dest_position=[90, 90],
-            view_scope_size=10):
+            view_scope_size=10,
+            weights=[1, 0.001, 100000]):
 
         self.field_size = field_size
         self.field_vel = field_vel
         self.dx = grid_size[0]
         self.dy = grid_size[1]
         self.dt = 0.1
-        self.k2 = 1
+
+        self.k1 = weights[0]
+        self.k2 = weights[1]
+        self.k3 = weights[2]
+
         self.view_scope_size = view_scope_size
         self.view_scope = np.ones((self.view_scope_size, self.view_scope_size))
         self.normalized_view_scope = np.ones((self.view_scope_size, self.view_scope_size))
@@ -37,10 +42,10 @@ class Experiment:
         self.trajectory = [init_position]
 
         # Display
-        self.fig_field = plt.figure(figsize=(8, 8))
-        self.fig_field_ax = self.fig_field.add_subplot(111)
-        self.fig_field_ax.set_title('Field State')
-        self.fig_field_ax.set_aspect('equal')
+        # self.fig_field = plt.figure(figsize=(8, 8))
+        # self.fig_field_ax = self.fig_field.add_subplot(111)
+        # self.fig_field_ax.set_title('Field State')
+        # self.fig_field_ax.set_aspect('equal')
 
     def set_init_position(self, init_position):
         if (init_position[0] < 0 or init_position[0] > self.field_size[0]) or (
@@ -96,9 +101,9 @@ class Experiment:
         combined_field = u_1 + reverse_u_1
         return combined_field
 
-    def _zmf(self, x, a, b):
+    def zmf(self, x, a, b):
         mid = (a + b) / 2
-        if (x <= a):
+        if (x < a):
             return 1
         elif (a <= x <= mid):
             return (1 - 2 * ((x - a) / (b - a)) ** 2)
@@ -107,32 +112,67 @@ class Experiment:
         else:
             return 0
 
-    def update_view_scope(self, r):
-        scopeRange = self.view_scope_size // 2;
+    # def update_view_scope(self, r):
+    #     """
+    #     Copy the view scope directly to agent_field_state in the correct location
+    #     no need to normalize
+    #     def copy_view_scope
+    #     """
+    #     scopeRange = self.view_scope_size // 2;
 
-        ## TODO: Is x is rows or y is rows. check this later
+    #     ## TODO: Is x is rows or y is rows. check this later
 
-        min_index = [r[0] - scopeRange, r[1] - scopeRange]
-        max_index = [r[0] + scopeRange, r[1] + scopeRange]
+    #     min_index = [r[0] - scopeRange, r[1] - scopeRange]
+    #     max_index = [r[0] + scopeRange, r[1] + scopeRange]
 
-        if min_index[0] < 0 or min_index[1] < 0 or max_index[0] >= self.field_size[0] or max_index[1] > self.field_size[1]:
-            return False
+    #     if min_index[0] < 0 or min_index[1] < 0 or max_index[0] >= self.field_size[0] or max_index[1] > self.field_size[1]:
+    #         return False
 
-        self.view_scope = self.curr_field[r[0] - scopeRange: r[0] + scopeRange,
-                          r[1] - scopeRange: r[1] + scopeRange].copy()
-        maxVal = self.view_scope.max()
-        minVal = self.view_scope.min()
-        self.normalized_view_scope = (self.view_scope - minVal) / (maxVal - minVal)
+    #     self.view_scope = self.curr_field[r[0] - scopeRange: r[0] + scopeRange,
+    #                       r[1] - scopeRange: r[1] + scopeRange].copy()
+    #     maxVal = self.view_scope.max()
+    #     minVal = self.view_scope.min()
+    #     self.normalized_view_scope = (self.view_scope - minVal) / (maxVal - minVal)
 
-        return True
+    #     return True
 
-    def reward(self, r_k, r):
-        offset = r - self.view_scope_size // 2
-        view_scope_index = r_k - offset
-        distance = self.k2 * np.linalg.norm(r - r_k) + \
-                   self._zmf(self.normalized_view_scope[view_scope_index[0],
-                                                        view_scope_index[1]], 0, 1)
-        return distance
+    def normalize(self, field):
+        max_val = field.max()
+        min_val = field.min()
+        field_normalized = (field - min_val) / (max_val - min_val)
+        return field_normalized
+
+    def copy_view_scope(self, r):
+        scope_range = self.view_scope_size // 2;
+
+        top_left_x = max(0, r[0] - scope_range)
+        top_left_y = max(0, r[1] - scope_range)
+
+        bottom_right_x = min(self.field_size[0] - 1, r[0] + scope_range)
+        bottom_right_y = min(self.field_size[1] - 1, r[1] + scope_range)
+
+        self.agent_field_state[top_left_x : bottom_right_x, top_left_y : bottom_right_y] = \
+            self.curr_field[top_left_x : bottom_right_x, top_left_y : bottom_right_y]
+
+    def calculate_mapping_error(self):
+        return np.sum(self.normalize(np.abs(self.agent_field_state - self.curr_field)))
+    
+    def calculate_reward(self, r):
+        traj_len = len(self.trajectory)
+        mapping_error = self.calculate_mapping_error()
+        dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
+
+        # print(f"Rewards: {traj_len}, {mapping_error}, {dist_to_goal}")
+
+        return -(self.k1 * traj_len + self.k2 * mapping_error + self.k3 * dist_to_goal)
+
+    # def calculate_reward(self, r_k, r):
+    #     offset = r - self.view_scope_size // 2
+    #     view_scope_index = r_k - offset
+    #     distance = self.k2 * np.linalg.norm(r - r_k) + \
+    #                self.zmf(self.normalized_view_scope[view_scope_index[0],
+    #                                                     view_scope_index[1]], 0, 1)
+    #     return distance
 
     def update_field(self):
         u = self.curr_field.copy()
@@ -167,26 +207,26 @@ class Experiment:
         # if np.array_equal(self.prev_field, self.curr_field):
         #     print("same ---->")
 
-    def show_field_in_loop(self):
-        fig = plt.figure(figsize=(8, 8))
-        ax = fig.add_subplot(111)
-        ax.set_title('Visualizing combined field')
-        ax.set_aspect('equal')
-        im = ax.imshow(self.curr_field, cmap="Blues")
-        # plt.show()
+    # def show_field_in_loop(self):
+    #     fig = plt.figure(figsize=(8, 8))
+    #     ax = fig.add_subplot(111)
+    #     ax.set_title('Visualizing combined field')
+    #     ax.set_aspect('equal')
+    #     im = ax.imshow(self.curr_field, cmap="Blues")
+    #     # plt.show()
 
-        for i in range(500):
-            # start_time = time.time()
-            ax.cla()
-            im = ax.imshow(self.curr_field, cmap="Blues")
-            # fig.colorbar(im, orientation='vertical')
-            self.update_field()
-            plt.pause(0.05)
-            # plt.show()
+    #     for i in range(500):
+    #         # start_time = time.time()
+    #         ax.cla()
+    #         im = ax.imshow(self.curr_field, cmap="Blues")
+    #         # fig.colorbar(im, orientation='vertical')
+    #         self.update_field()
+    #         plt.pause(0.05)
+    #         # plt.show()
 
-            # dur = time.time() - start_time
-            # print("Time taken: " + str(dur))
-        plt.show()
+    #         # dur = time.time() - start_time
+    #         # print("Time taken: " + str(dur))
+    #     plt.show()
 
     def get_z_dot(self, r):
         z_k1 = self.curr_field[r[0], r[1]]
@@ -217,14 +257,20 @@ class Experiment:
 
         # adding the z_dot to state vector
         z_dot = self.get_z_dot(r)
-        print("Z_dot: ", z_dot)
+        # print("Z_dot: ", z_dot)
         state_vector.append(z_dot)
 
         return state_vector
 
-    def show_field_state(self):
-        self.fig_field_ax.cla()
-        im = self.fig_field_ax.imshow(self.curr_field, cmap="Blues")
+    def show_field_state(self, num):
+        # self.fig_field_ax.cla()
+        # im = self.fig_field_ax.imshow(self.curr_field, cmap="Blues")
+        fig = plt.figure(figsize=(8, 8))
+        fig_ax = fig.add_subplot(111)
+        fig_ax.set_title('Field State')
+        fig_ax.set_aspect('equal')
+
+        plt.imshow(self.curr_field, cmap="Blues")
 
         # Plot trajectory
         traj_r = [p[0] for p in self.trajectory]
@@ -237,7 +283,11 @@ class Experiment:
         # Plot ending position
         plt.plot(self.dest_position[0], self.dest_position[1], '*', color='red')
 
-        self.fig_field.colorbar(im, orientation='vertical')
-        plt.show()
+        # self.fig_field.colorbar(im, orientation='vertical')
+        # plt.show()
+        path = "./images/"
+        plt.savefig(path + str(num) + ".png")
+        print("<<<<<<<<<<<<<<<<<<<<<Iter:" + str(num) + " Image Saved!>>>>>>>>>>>>>>>>>>>>>>>")
+        plt.close(fig=fig)
 
         # TODO(deepak): Add title, time instant etc

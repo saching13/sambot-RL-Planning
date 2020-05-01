@@ -11,7 +11,7 @@ import collections
 import warnings
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 2
+MAX_NUM_EPISODES = 2000
 STEPS_PER_EPISODE = 200  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
@@ -68,7 +68,7 @@ class Q_Learner(object):
         try:
             actions = self.Q[tuple(discretized_obs)]
         except KeyError:
-            return 0
+            return np.random.choice([a for a in range(self.action_shape)])
 
         maxArg = 0
         maxValue = -float('inf')
@@ -104,7 +104,7 @@ class Q_Learner(object):
 
     def learn(self, obs, action, reward, next_obs):
         discretized_obs = self.discretize_state_vector(obs)
-        print("Zdot bin:", discretized_obs[-1])
+        # print("Zdot bin:", discretized_obs[-1])
         discretized_next_obs = self.discretize_state_vector(next_obs)
         td_target = reward + self.gamma * self.get_max(discretized_next_obs, False)
         td_error = td_target - self.get_Q_value(discretized_obs, action)
@@ -154,7 +154,8 @@ def get_policy_action(agent, obs, policy):
     try:
         return policy[tuple(discritized_obs)]
     except KeyError:
-        warnings.warn("state not found in Policy", KeyError)
+        # warnings.warn("state not found in Policy", KeyError)
+        print("state not found in Policy")
         return 0;
 
 
@@ -177,7 +178,7 @@ if __name__ == "__main__":
     # Use the Gym Monitor wrapper to evalaute the agent and record video
     # gym_monitor_path = "./gym_monitor_output"
     # env = gym.wrappers.Monitor(env, gym_monitor_path, force=True)
-    for episode in range(1000):
+    for episode in range(10):
         reward = test(agent, env, learned_policy)
         print("Test Episode#:{} reward:{}".format(episode,reward) )
     env.close()
