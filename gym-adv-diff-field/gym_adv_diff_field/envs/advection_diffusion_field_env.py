@@ -10,7 +10,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
 
     def __init__(self,
                  field_size=[100, 100],
-                 field_vel=[-0.8, 0.8],
+                 field_vel=[-0.2, 0.2],
                  grid_size=[0.8, 0.8],
                  init_position=[10, 10],
                  dest_position=[90, 90],
@@ -27,10 +27,10 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         self.max_field_value = 21
 
         self.min_r_x = 0
-        self.max_r_x = 100
+        self.max_r_x = field_size[1]
         
         self.min_r_y = 0
-        self.max_r_y = 100
+        self.max_r_y = field_size[0]
         
         self.min_z_dot = -7
         self.max_z_dot = 7
@@ -82,13 +82,13 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         #TODO(deepak): Add uncertainty to action
         # Calculate next location
         if action == "left":
-            r_new[1] = r_new[1] - 1
-        elif action == "right":
-            r_new[1] = r_new[1] + 1
-        elif action == "up":
             r_new[0] = r_new[0] - 1
-        elif action == "down":
+        elif action == "right":
             r_new[0] = r_new[0] + 1
+        elif action == "up":
+            r_new[1] = r_new[1] - 1
+        elif action == "down":
+            r_new[1] = r_new[1] + 1
 
         # Check if done with learning
         # done = True if r_new == self.experiment.dest_position else False
@@ -116,7 +116,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         # TODO(Deepak): Figure out how to formulate reward
         # view_scope_state = self.experiment.update_view_scope(r_new)
         self.experiment.copy_view_scope(r_new)
-        reward = self.experiment.calculate_reward(r_new)
+        reward = self.experiment.calculate_reward_2(r_new)
 
         # Update the robot center location and append trajectory
         self.r = r_new

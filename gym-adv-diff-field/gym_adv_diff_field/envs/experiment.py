@@ -11,12 +11,12 @@ class Experiment:
     def __init__(
             self,
             field_size=[100, 100],
-            field_vel=[-0.6, 0.8],
+            field_vel=[-0.2, 0.2], # lowered to make similar to static case
             grid_size=[0.8, 0.8],
             init_position=[10, 10],
             dest_position=[90, 90],
-            view_scope_size=10,
-            weights=[1, 0.001, 100000]):
+            view_scope_size=11,
+            weights=[1, 1, 10]):
 
         self.field_size = field_size
         self.field_vel = field_vel
@@ -29,8 +29,8 @@ class Experiment:
         self.k3 = weights[2]
 
         self.view_scope_size = view_scope_size
-        self.view_scope = np.ones((self.view_scope_size, self.view_scope_size))
-        self.normalized_view_scope = np.ones((self.view_scope_size, self.view_scope_size))
+        self.view_scope = np.zeros((self.view_scope_size, self.view_scope_size))
+        # self.normalized_view_scope = np.zeros((self.view_scope_size, self.view_scope_size))
         self.init_position = copy.deepcopy(init_position)
         self.dest_position = dest_position
 
@@ -63,6 +63,7 @@ class Experiment:
         self.curr_field = self.create_field()
         self.prev_field = np.zeros(self.field_size)
         self.trajectory = [self.init_position]
+        self.agent_field_state = np.zeros(self.field_size)
         print("Experiment Reset")
 
     def create_field(self):
@@ -151,20 +152,38 @@ class Experiment:
         bottom_right_x = min(self.field_size[0] - 1, r[0] + scope_range)
         bottom_right_y = min(self.field_size[1] - 1, r[1] + scope_range)
 
-        self.agent_field_state[top_left_x : bottom_right_x, top_left_y : bottom_right_y] = \
-            self.curr_field[top_left_x : bottom_right_x, top_left_y : bottom_right_y]
+        self.view_scope = self.curr_field[top_left_y : bottom_right_y + 1, top_left_x : bottom_right_x + 1]
+
+        self.agent_field_state[top_left_y : bottom_right_y + 1, top_left_x : bottom_right_x + 1] = \
+            self.curr_field[top_left_y : bottom_right_y + 1, top_left_x : bottom_right_x + 1]
+    
+    def get_normalized_view_scope_at(self, r):
+        max_val = self.view_scope.max()
+        min_val = self.view_scope.min()
+        view_scope_normalized = (self.view_scope - min_val) / (max_val - min_val)
+        return view_scope_normalized[5, 5] # center value of the view scope
 
     def calculate_mapping_error(self):
         return np.sum(self.normalize(np.abs(self.agent_field_state - self.curr_field)))
     
-    def calculate_reward(self, r):
-        traj_len = len(self.trajectory)
-        mapping_error = self.calculate_mapping_error()
+    # def calculate_reward(self, r):
+    #     traj_len = len(self.trajectory)
+    #     mapping_error = self.calculate_mapping_error()
+    #     dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
+
+    #     # print(f"Rewards: {traj_len}, {mapping_error}, {dist_to_goal}")
+
+    #     return -(self.k1 * traj_len + self.k2 * mapping_error + self.k3 * dist_to_goal)
+
+    
+    def calculate_reward_2(self, r): # Option 2
+        """
+        2. Mapping error only measuremnet + negation
+        """
+        mapping_error = self.get_normalized_view_scope_at(r)
         dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
-
-        # print(f"Rewards: {traj_len}, {mapping_error}, {dist_to_goal}")
-
-        return -(self.k1 * traj_len + self.k2 * mapping_error + self.k3 * dist_to_goal)
+        print(f"Rewards: {mapping_error}, {dist_to_goal}")
+        return -(self.k2 * mapping_error + self.k3 * dist_to_goal)
 
     # def calculate_reward(self, r_k, r):
     #     offset = r - self.view_scope_size // 2
@@ -229,15 +248,15 @@ class Experiment:
     #     plt.show()
 
     def get_z_dot(self, r):
-        z_k1 = self.curr_field[r[0], r[1]]
-        z_k = self.prev_field[r[0], r[1]]
+        z_k1 = self.curr_field[r[1], r[0]]
+        z_k = self.prev_field[r[1], r[0]]
 
         return (z_k1 - z_k) / self.dt
 
     def get_gradient(self, r):
 
-        dz_dx = (self.curr_field[r[0] + 1, r[1]] - self.curr_field[r[0] - 1, r[1]]) / (2 * ((r[0] + 1) - (r[0] - 1)))
-        dz_dy = (self.curr_field[r[0], r[1] + 1] - self.curr_field[r[0], r[0] - 1]) / (2 * ((r[1] + 1) - (r[1] - 1)))
+        dz_dy = (self.curr_field[r[0] + 1, r[1]] - self.curr_field[r[0] - 1, r[1]]) / (2 * ((r[0] + 1) - (r[0] - 1)))
+        dz_dx = (self.curr_field[r[0], r[1] + 1] - self.curr_field[r[0], r[0] - 1]) / (2 * ((r[1] + 1) - (r[1] - 1)))
 
         return np.array([dz_dx, dz_dy]) / np.linalg.norm([dz_dx, dz_dy])
 
@@ -266,28 +285,41 @@ class Experiment:
         # self.fig_field_ax.cla()
         # im = self.fig_field_ax.imshow(self.curr_field, cmap="Blues")
         fig = plt.figure(figsize=(8, 8))
-        fig_ax = fig.add_subplot(111)
-        fig_ax.set_title('Field State')
-        fig_ax.set_aspect('equal')
+        fig_ax1 = fig.add_subplot(121)
+        fig_ax1.set_title('Field State')
+        fig_ax1.set_aspect('equal')
 
-        plt.imshow(self.curr_field, cmap="Blues")
+        fig_ax1.imshow(self.curr_field, cmap="Blues", origin=(100, 0))
 
         # Plot trajectory
         traj_r = [p[0] for p in self.trajectory]
         traj_c = [p[1] for p in self.trajectory]
-        plt.plot(traj_r, traj_c, 'o', color='black')
+        fig_ax1.plot(traj_r, traj_c, 'o', color='black')
 
         # Plot starting position
-        plt.plot(self.init_position[0], self.init_position[1], '*')
+        fig_ax1.plot(self.init_position[0], self.init_position[1], '*')
 
         # Plot ending position
-        plt.plot(self.dest_position[0], self.dest_position[1], '*', color='red')
+        fig_ax1.plot(self.dest_position[0], self.dest_position[1], '*', color='red')
 
         # self.fig_field.colorbar(im, orientation='vertical')
         # plt.show()
+
+        fig_ax2 = fig.add_subplot(122)
+        fig_ax2.set_title('Agent Field State')
+        fig_ax2.set_aspect('equal')
+
+        fig_ax2.imshow(self.agent_field_state, cmap="Blues", origin=(100, 0))
+        
+        # Plot starting position
+        fig_ax2.plot(self.init_position[0], self.init_position[1], '*')
+
+        # Plot ending position
+        fig_ax2.plot(self.dest_position[0], self.dest_position[1], '*', color='red')
+
         path = "./images/"
         plt.savefig(path + str(num) + ".png")
-        print("<<<<<<<<<<<<<<<<<<<<<Iter:" + str(num) + " Image Saved!>>>>>>>>>>>>>>>>>>>>>>>")
+        print("<<<<<<<<<<<<<<<<<<<<< Iter:" + str(num) + " Image Saved! >>>>>>>>>>>>>>>>>>>>>>>")
         plt.close(fig=fig)
 
         # TODO(deepak): Add title, time instant etc
