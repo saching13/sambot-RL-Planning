@@ -255,8 +255,8 @@ class Experiment:
 
     def get_gradient(self, r):
 
-        dz_dy = (self.curr_field[r[0] + 1, r[1]] - self.curr_field[r[0] - 1, r[1]]) / (2 * ((r[0] + 1) - (r[0] - 1)))
-        dz_dx = (self.curr_field[r[0], r[1] + 1] - self.curr_field[r[0], r[0] - 1]) / (2 * ((r[1] + 1) - (r[1] - 1)))
+        dz_dy = (self.curr_field[r[1] + 1, r[0]] - self.curr_field[r[1] - 1, r[0]]) / (2 * ((r[1] + 1) - (r[1] - 1)))
+        dz_dx = (self.curr_field[r[1], r[0] + 1] - self.curr_field[r[1], r[0] - 1]) / (2 * ((r[0] + 1) - (r[0] - 1)))
 
         return np.array([dz_dx, dz_dy]) / np.linalg.norm([dz_dx, dz_dy])
 
@@ -268,7 +268,7 @@ class Experiment:
         state_vector.append(r[1])
 
         # adding the field value at r_x, r_y
-        state_vector.append(self.curr_field[r[0], r[1]])
+        state_vector.append(self.curr_field[r[1], r[0]])
         # adding the gradient of the field at r_x and r_y
         z_grad = self.get_gradient(r)
         state_vector.append(z_grad[0])
