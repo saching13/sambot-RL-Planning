@@ -301,7 +301,7 @@ class Experiment:
 
         # Plot ending position
         fig_ax1.plot(self.dest_position[0], self.dest_position[1], '*', color='red')
-
+ 
         # self.fig_field.colorbar(im, orientation='vertical')
         # plt.show()
 
