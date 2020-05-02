@@ -175,6 +175,21 @@ class Experiment:
 
     #     return -(self.k1 * traj_len + self.k2 * mapping_error + self.k3 * dist_to_goal)
 
+    def get_normalized_field_value(self, field, r):
+        max_val = field.max()
+        min_val = field.min()
+        field_value_r_normalized = (field[r[1], r[0]] - min_val) / (max_val - min_val)
+        return field_value_r_normalized 
+
+    def calculate_reward_1(self, r): # Option 2
+        """
+        1. Mapping error only measuremnet + ZMF
+        """
+        mapping_error = self.get_normalized_view_scope_at(r)
+        zmf_error = self.zmf(mapping_error, 0, 1)
+        dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
+        print(f"Rewards: {zmf_error}, {dist_to_goal}")
+        return (self.k2 * zmf_error - self.k3 * dist_to_goal)
     
     def calculate_reward_2(self, r): # Option 2
         """
@@ -184,6 +199,27 @@ class Experiment:
         dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
         print(f"Rewards: {mapping_error}, {dist_to_goal}")
         return -(self.k2 * mapping_error + self.k3 * dist_to_goal)
+
+    def calculate_reward_3(self, r): # Option 2
+        """
+        3. Mapping error y - z_prev(r) + negation
+        """
+        map_error = self.curr_field - self.prev_field
+        field_error_at_r = self.get_normalized_field_value(map_error, r)
+        dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
+        print(f"Rewards: {field_error_at_r}, {dist_to_goal}")
+        return -(self.k2 * field_error_at_r + self.k3 * dist_to_goal)
+
+    def calculate_reward_4(self, r): # Option 2
+        """
+        4. Mapping error y - z_prev(r) + zmf
+        """
+        map_error = self.curr_field - self.prev_field
+        field_error_at_r = self.get_normalized_field_value(map_error, r)
+        zmf_error = self.zmf(field_error_at_r, 0, 1)
+        dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
+        print(f"Rewards: {zmf_error}, {dist_to_goal}")
+        return (self.k2 * zmf_error + self.k3 * dist_to_goal)
 
     # def calculate_reward(self, r_k, r):
     #     offset = r - self.view_scope_size // 2
