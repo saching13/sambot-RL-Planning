@@ -11,8 +11,8 @@ import collections
 import warnings
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 2000
-STEPS_PER_EPISODE = 500  # This is specific to MountainCar. May change with env
+MAX_NUM_EPISODES = 10000
+STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 EPSILON_DECAY = 500 * EPSILON_MIN / max_num_steps
@@ -22,9 +22,9 @@ GAMMA = 0.98  # Discount factor
 
 
 discreteBins_r = 100
-discreteBins_FieldValue = 100
-discreteBins_z_grad = 500
-discreteBins_z_dot = 500
+discreteBins_FieldValue = 420
+discreteBins_z_grad = 20
+discreteBins_z_dot = 300
 
 
 class Q_Learner(object):
