@@ -94,7 +94,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         # done = True if r_new == self.experiment.dest_position else False
 
         # If out of bounds
-        if (r_new[0] < 0 or r_new[0] > self.experiment.field_size[0] or r_new[1] < 0 or r_new[1] > self.experiment.field_size[1]):
+        if (r_new[0] <= 0 or r_new[0] >= self.experiment.field_size[0] - 1  or r_new[1] <= 0 or r_new[1] >= self.experiment.field_size[1] - 1):
             print(self.num_actions)
             self.render()
             return [0, 0, 0, 0, 0, 0], -400, True
