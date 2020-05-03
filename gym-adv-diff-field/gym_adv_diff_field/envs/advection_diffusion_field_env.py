@@ -112,7 +112,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         # TODO(Deepak): Figure out how to formulate reward
         # view_scope_state = self.experiment.update_view_scope(r_new)
         self.experiment.copy_view_scope(r_new)
-        reward = self.experiment.calculate_reward_2(r_new)
+        reward = self.experiment.calculate_reward_1(r_new)
 
         # Update the robot center location and append trajectory
         self.r = r_new
