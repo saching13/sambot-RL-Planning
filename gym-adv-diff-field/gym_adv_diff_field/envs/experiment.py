@@ -219,7 +219,7 @@ class Experiment:
         zmf_error = self.zmf(field_error_at_r, 0, 1)
         dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
         print(f"Rewards: {zmf_error}, {dist_to_goal}")
-        return (self.k2 * zmf_error + self.k3 * dist_to_goal)
+        return (self.k2 * zmf_error - self.k3 * dist_to_goal)
 
     # def calculate_reward(self, r_k, r):
     #     offset = r - self.view_scope_size // 2

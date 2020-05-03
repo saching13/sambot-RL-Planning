@@ -99,10 +99,6 @@ class AdvectionDiffusionFieldEnv(gym.Env):
             self.render()
             return [0, 0, 0, 0, 0, 0], -400, True
         
-        if (self.step_count > 300):
-            print("Number of steps exceeded")
-            self.render()
-            return [0, 0, 0, 0, 0, 0], -400, True
 
         # Update the field
         self.experiment.update_field()
@@ -135,12 +131,23 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         else:
             done = False
 
+        if (self.step_count > 300):
+            print("Number of steps exceeded")
+            self.render()
+            done = True
+            reward = -10000
+
         return state_vector, reward, done
         
+    def set_init_position(self):
+        view_scope_offset = self.experiment.view_scope // 2
+        r_x = np.random.randint(view_scope_offset, self.experiment.field_size[0] - view_scope_offset)
+        r_y = np.random.randint(view_scope_offset, self.experiment.field_size[1] - view_scope_offset)
+        return [r_x, r_y]
 
     def reset(self):
         self.experiment.reset()
-        self.r = self.experiment.init_position
+        self.r = self.set_init_position()
         state_vector = self.experiment.get_state_vector(self.r)
         self.num_actions = [0, 0, 0, 0]
         self.step_count = 0

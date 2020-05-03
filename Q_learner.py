@@ -9,9 +9,10 @@ from gym_adv_diff_field.envs.advection_diffusion_field_env import AdvectionDiffu
 import numpy as np
 import collections
 import warnings
+import pickle
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 10000
+MAX_NUM_EPISODES = 2
 STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
@@ -175,10 +176,12 @@ if __name__ == "__main__":
     env = gym.make('adv-diff-field-v0')
     agent = Q_Learner(env)
     learned_policy = train(agent, env)
+    with open("learned_policy.txt", 'wb') as policy_file:
+        pickle.dump(learned_policy, policy_file)
     # Use the Gym Monitor wrapper to evalaute the agent and record video
     # gym_monitor_path = "./gym_monitor_output"
     # env = gym.wrappers.Monitor(env, gym_monitor_path, force=True)
-    for episode in range(10):
+    for episode in range(2):
         reward = test(agent, env, learned_policy)
         print("Test Episode#:{} reward:{}".format(episode,reward) )
     env.close()
