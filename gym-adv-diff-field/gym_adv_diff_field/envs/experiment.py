@@ -39,7 +39,7 @@ class Experiment:
         self.curr_field = self.create_field()
         self.prev_field = np.zeros(field_size)
 
-        self.trajectory = [init_position]
+        self.trajectory = []
 
         # Display
         # self.fig_field = plt.figure(figsize=(8, 8))
@@ -228,6 +228,13 @@ class Experiment:
     #                self.zmf(self.normalized_view_scope[view_scope_index[0],
     #                                                     view_scope_index[1]], 0, 1)
     #     return distance
+
+    def reset_init_position(self):
+        view_scope_offset = self.view_scope_size // 2
+        r_x = np.random.randint(view_scope_offset, self.field_size[0] - view_scope_offset)
+        r_y = np.random.randint(view_scope_offset, self.field_size[1] - view_scope_offset)
+        self.init_position = [r_x, r_y]
+        return [r_x, r_y]
 
     def update_field(self):
         u = self.curr_field.copy()
