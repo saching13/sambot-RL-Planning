@@ -2,7 +2,34 @@ import gym
 import gym_adv_diff_field
 
 import pickle
-pol = pickle.load(open("learned_policy.txt",'rb'))
-print(type(pol))
-print(len(pol))
-print(pol)
+import numpy as np
+
+file = np.load("curr_field.npy")
+print(file.shape)
+sliced_size = file[::2, ::2]
+print(sliced_size.shape)
+import matplotlib.pyplot as plt
+
+fig = plt.figure(figsize=(8, 8))
+fig_ax1 = fig.add_subplot(121)
+fig_ax1.set_title('Field State')
+fig_ax1.set_aspect('equal')
+
+fig_ax1.imshow(file, cmap="Blues", origin=(100, 0))
+
+fig_ax2 = fig.add_subplot(122)
+fig_ax2.set_title('Agent Field State')
+fig_ax2.set_aspect('equal')
+
+fig_ax2.imshow(sliced_size, cmap="Blues", origin=(100, 0))
+
+# Plot starting position
+# fig_ax2.plot(self.init_position[0], self.init_position[1], '*')
+
+# Plot ending position
+# fig_ax2.plot(self.dest_position[0], self.dest_position[1], '*', color='red')
+
+path = "./images/"
+plt.savefig(path + "asds" + ".png")
+# print("<<<<<<<<<<<<<<<<<<<<< Iter:" + str(num) + " Image Saved! >>>>>>>>>>>>>>>>>>>>>>>")
+plt.close(fig=fig)

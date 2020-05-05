@@ -7,12 +7,11 @@ problem using the OpenAI Gym. | Praveen Palanisamy
 import gym
 from gym_adv_diff_field.envs.advection_diffusion_field_env import AdvectionDiffusionFieldEnv
 import numpy as np
-import collections
-import warnings
 import pickle
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 4000
+MAX_NUM_EPISODES = 10
+NUM_TEST_EPISODES = 10
 STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
@@ -29,7 +28,8 @@ discreteBins_z_dot = 300
 
 
 class Q_Learner(object):
-    def __init__(self, env):
+    def __init__(self, env, scalar_field=False):
+        self.scalar_field = scalar_field
         self.obs_shape = env.observation_space.shape
         self.obs_high = env.observation_space.high
         self.obs_low = env.observation_space.low
@@ -50,14 +50,17 @@ class Q_Learner(object):
         binWidth_fieldValue = space[2] / discreteBins_FieldValue
         binWidth_z_grad = space[3] / discreteBins_z_grad
 
-        binWidth_z_dot = space[5] / discreteBins_z_dot
-        return [binWidth_r, binWidth_r, binWidth_fieldValue, binWidth_z_grad, binWidth_z_grad, binWidth_z_dot]
+        if not self.scalar_field:
+            binWidth_z_dot = space[5] / discreteBins_z_dot
+            return [binWidth_r, binWidth_r, binWidth_fieldValue, binWidth_z_grad, binWidth_z_grad, binWidth_z_dot]
+        else:
+            return [binWidth_r, binWidth_r, binWidth_fieldValue, binWidth_z_grad, binWidth_z_grad]
 
-    def discretize_state_vector(self, stateVector):
+    def discretize_state_vector(self, state_vector):
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
         obs = []
         for i in range(self.obs_shape[0]):
-            obs.append(self.discretize(stateVector[i], self.obs_low[i], self.bin_width[i]))
+            obs.append(self.discretize(state_vector[i], self.obs_low[i], self.bin_width[i]))
         return obs
 
     def discretize(self, obs, low, binWidth):
@@ -174,14 +177,14 @@ def test(agent, env, policy):
 
 if __name__ == "__main__":
     env = gym.make('adv-diff-field-v0')
-    agent = Q_Learner(env)
+    agent = Q_Learner(env, scalar_field=True)
     learned_policy = train(agent, env)
     with open("learned_policy.txt", 'wb') as policy_file:
         pickle.dump(learned_policy, policy_file)
     # Use the Gym Monitor wrapper to evalaute the agent and record video
     # gym_monitor_path = "./gym_monitor_output"
     # env = gym.wrappers.Monitor(env, gym_monitor_path, force=True)
-    for episode in range(50):
+    for episode in range(NUM_TEST_EPISODES):
         reward = test(agent, env, learned_policy)
         print("Test Episode#:{} reward:{}".format(episode,reward) )
     env.close()

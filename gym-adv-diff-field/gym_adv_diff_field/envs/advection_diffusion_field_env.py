@@ -2,26 +2,42 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 from .experiment import Experiment
+from .static_environment import StaticExperiment
 import numpy as np
 import copy
+
 
 class AdvectionDiffusionFieldEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self,
-                 field_size=[100, 100],
+                 field_size=[50, 50],
                  field_vel=[-0.2, 0.2],
                  grid_size=[0.8, 0.8],
+                 dest_position=[42, 42],
                  init_position=[10, 10],
-                 dest_position=[90, 90],
-                 view_scope_size = 10):
+                 view_scope_size=5,
+                 static_field=True):
 
-        self.experiment = Experiment(
-            field_size=field_size,
-            field_vel=field_vel,
-            grid_size=grid_size,
-            init_position=init_position,
-            dest_position=dest_position)
+        self.static_field = static_field
+
+        if not self.static_field:
+            self.experiment = Experiment(
+                field_size=field_size,
+                field_vel=field_vel,
+                grid_size=grid_size,
+                init_position=init_position,
+                dest_position=dest_position,
+                view_scope_size=view_scope_size,
+                weights=[1, 1, 10])
+        else:
+            self.experiment = StaticExperiment(
+                field_size=field_size,
+                grid_size=grid_size,
+                init_position=init_position,
+                dest_position=dest_position,
+                view_scope_size=view_scope_size,
+                weights=[1, 1, 10])
 
         self.min_field_value = 0
         self.max_field_value = 21
@@ -31,16 +47,17 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         
         self.min_r_y = 0
         self.max_r_y = field_size[0]
-        
-        self.min_z_dot = -7
-        self.max_z_dot = 7
 
-        self.min_z_grad_y = -1;
-        self.max_z_grad_y = 1;
+        if not self.static_field:        
+            self.min_z_dot = -7
+            self.max_z_dot = 7
 
-        self.min_z_grad_x = -1;
-        self.max_z_grad_x = 1;
-        self.max_Zdot = -float("inf")
+        self.min_z_grad_y = -1
+        self.max_z_grad_y = 1
+
+        self.min_z_grad_x = -1
+        self.max_z_grad_x = 1
+
         # Define current position as initial position
         self.r = copy.deepcopy(init_position)
         # self.offset = self.init_position - (view_scope_size // 2)
@@ -50,18 +67,24 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         self.episode_num = 0
 
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
-        self.low = np.array([self.min_r_x, self.min_r_y, self.min_field_value,  self.min_z_grad_x, self.min_z_grad_y, self.min_z_dot], dtype = np.float32)
-        self.high = np.array([self.max_r_x, self.max_r_y, self.max_field_value, self.max_z_grad_x, self.max_z_grad_y, self.max_z_dot], dtype = np.float32)
+        if not self.static_field:
+            self.low = np.array([self.min_r_x, self.min_r_y, self.min_field_value,  self.min_z_grad_x, self.min_z_grad_y, self.min_z_dot], dtype = np.float32)
+            self.high = np.array([self.max_r_x, self.max_r_y, self.max_field_value, self.max_z_grad_x, self.max_z_grad_y, self.max_z_dot], dtype = np.float32)
+        else:
+            self.low = np.array([self.min_r_x, self.min_r_y, self.min_field_value,  self.min_z_grad_x, self.min_z_grad_y], dtype = np.float32)
+            self.high = np.array([self.max_r_x, self.max_r_y, self.max_field_value, self.max_z_grad_x, self.max_z_grad_y], dtype = np.float32)
+
         self.observation_space = spaces.Box(self.low, self.high, dtype=np.float32)
 
         self.action_space = spaces.Discrete(4)
         self.action_space_map = {}
         actions = ["left", "right", "up", "down"]
+
         for i, action in enumerate(actions):
-            self.action_space_map[i] = action;
+            self.action_space_map[i] = action
 
         # self.trajectory = []
-        # self.trajectory.append(self.r)
+        # self.trajectory.append(self.r)ooooooo
 
     def step(self, action_id):
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
@@ -97,7 +120,10 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         if (r_new[0] <= 0 or r_new[0] >= self.experiment.field_size[0] - 1  or r_new[1] <= 0 or r_new[1] >= self.experiment.field_size[1] - 1):
             print(self.num_actions)
             self.render()
-            return [0, 0, 0, 0, 0, 0], -400, True
+            if not self.static_field:
+                return [0, 0, 0, 0, 0, 0], -400, True
+            else:
+                return [0, 0, 0, 0, 0], -400, True
         
 
         # Update the field
@@ -105,12 +131,8 @@ class AdvectionDiffusionFieldEnv(gym.Env):
 
         # Get the new state vector (observation) state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
         state_vector = self.experiment.get_state_vector(r_new)
-        # self.max_Zdot = max(self.max_Zdot,  abs(state_vector[-1]))
-
-        # print("Max Z dot : ", self.max_Zdot)
 
         # TODO(Deepak): Figure out how to formulate reward
-        # view_scope_state = self.experiment.update_view_scope(r_new)
         self.experiment.copy_view_scope(r_new)
         reward = self.experiment.calculate_reward_1(r_new)
 
@@ -131,7 +153,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         else:
             done = False
 
-        if (self.step_count > 300):
+        if self.step_count > 300:
             print("Number of steps exceeded")
             self.render()
             done = True

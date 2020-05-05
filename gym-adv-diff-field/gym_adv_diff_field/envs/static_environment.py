@@ -6,20 +6,19 @@ import os
 import time
 import copy
 
-class Experiment:
+class StaticExperiment:
 
     def __init__(
             self,
-            field_size=[100, 100],
-            field_vel=[-0.2, 0.2], # lowered to make similar to static case
+            field_size=[50, 50],
             grid_size=[0.8, 0.8],
             init_position=[10, 10],
             dest_position=[90, 90],
-            view_scope_size=11,
+            view_scope_size=5,
             weights=[1, 1, 10]):
 
         self.field_size = field_size
-        self.field_vel = field_vel
+        # self.field_vel = field_vel
         self.dx = grid_size[0]
         self.dy = grid_size[1]
         self.dt = 0.1
@@ -38,8 +37,6 @@ class Experiment:
 
         self.curr_field = self.create_field()
         self.prev_field = np.zeros(field_size)
-
-
 
         self.trajectory = []
 
@@ -70,39 +67,10 @@ class Experiment:
 
     def create_field(self):
         cwd = os.getcwd()
-        loaded_mat = io.loadmat(cwd + "/u.mat")
-        u = loaded_mat.get('u')
 
-        u_1 = u.copy()
-        source_1_c_shift = 13
+        combined_field = np.load(cwd + "/curr_field.npy")
+        combined_field = combined_field[::2, ::2]
 
-        for r in range(0, self.field_size[0]):
-            for c in range(0, self.field_size[1]):
-                u_1[r, c] = u[r %
-                              self.field_size[0], (c - source_1_c_shift) %
-                              self.field_size[1]]
-
-        reverse_u = u.copy()
-
-        for r in range(0, self.field_size[0]):
-            for c in range(0, self.field_size[1]):
-                reverse_u[r, c] = u[self.field_size[0] -
-                                    r - 1, self.field_size[1] - c - 1]
-
-        reverse_u_1 = u.copy()
-        source_2_r_shift = 10
-        source_2_c_shift = 2
-
-        for r in range(0, self.field_size[0]):
-            for c in range(0, self.field_size[1]):
-                reverse_u_1[r, c] = reverse_u[(r +
-                                               source_2_r_shift) %
-                                              self.field_size[0], (c +
-                                                                   source_2_c_shift) %
-                                              self.field_size[1]]
-
-        combined_field = u_1 + reverse_u_1
-        # np.save("curr_field.npy", combined_field)
         return combined_field
 
     def zmf(self, x, a, b):
@@ -164,7 +132,8 @@ class Experiment:
         max_val = self.view_scope.max()
         min_val = self.view_scope.min()
         view_scope_normalized = (self.view_scope - min_val) / (max_val - min_val)
-        return view_scope_normalized[5, 5] # center value of the view scope
+        index = self.view_scope_size // 2
+        return view_scope_normalized[index, index] # center value of the view scope
 
     def calculate_mapping_error(self):
         return np.sum(self.normalize(np.abs(self.agent_field_state - self.curr_field)))
@@ -240,64 +209,10 @@ class Experiment:
         return [r_x, r_y]
 
     def update_field(self):
-        u = self.curr_field.copy()
-        updated_u = self.curr_field.copy()
-        u_k = self.curr_field.copy()
-
-        dx = self.dx
-        dy = self.dy
-        dt = self.dt
-        vx = self.field_vel[0]
-        vy = self.field_vel[1]
-
-        for i in range(1, self.field_size[0] - 1):
-            for j in range(1, self.field_size[1] - 1):
-                k = 1
-                updated_u[j,
-                          i] = u[j,
-                                 i] + k * (dt / dx ** 2) * ((u_k[j + 1,
-                                                                 i] + u_k[j - 1,
-                                                                          i] + u_k[j,
-                                                                                   i + 1] + u_k[j,
-                                                                                                i - 1] - 4 * u_k[j,
-                                                                                                                 i])) + vx * (dt / dx) * ((u_k[j + 1,i] - u_k[j,
-                                                                 i])) + vy * (dt / dy) * (u_k[j,
-                                                                                              i + 1] - u_k[j,
-                                                                                                           i])
-
-        self.prev_field = self.curr_field
-        self.curr_field = updated_u
-        # print(id(self.prev_field))
-        # print(id(self.curr_field))
-        # if np.array_equal(self.prev_field, self.curr_field):
-        #     print("same ---->")
-
-    # def show_field_in_loop(self):
-    #     fig = plt.figure(figsize=(8, 8))
-    #     ax = fig.add_subplot(111)
-    #     ax.set_title('Visualizing combined field')
-    #     ax.set_aspect('equal')
-    #     im = ax.imshow(self.curr_field, cmap="Blues")
-    #     # plt.show()
-
-    #     for i in range(500):
-    #         # start_time = time.time()
-    #         ax.cla()
-    #         im = ax.imshow(self.curr_field, cmap="Blues")
-    #         # fig.colorbar(im, orientation='vertical')
-    #         self.update_field()
-    #         plt.pause(0.05)
-    #         # plt.show()
-
-    #         # dur = time.time() - start_time
-    #         # print("Time taken: " + str(dur))
-    #     plt.show()
+        pass
 
     def get_z_dot(self, r):
-        z_k1 = self.curr_field[r[1], r[0]]
-        z_k = self.prev_field[r[1], r[0]]
-
-        return (z_k1 - z_k) / self.dt
+        pass
 
     def get_gradient(self, r):
         dz_dy = (self.curr_field[r[1] + 1, r[0]] - self.curr_field[r[1] - 1, r[0]]) / (2 * ((r[1] + 1) - (r[1] - 1)))
@@ -318,11 +233,6 @@ class Experiment:
         z_grad = self.get_gradient(r)
         state_vector.append(z_grad[0])
         state_vector.append(z_grad[1])
-
-        # adding the z_dot to state vector
-        z_dot = self.get_z_dot(r)
-        # print("Z_dot: ", z_dot)
-        state_vector.append(z_dot)
 
         return state_vector
 
