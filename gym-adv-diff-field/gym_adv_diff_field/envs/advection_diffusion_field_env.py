@@ -11,13 +11,15 @@ class AdvectionDiffusionFieldEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self,
-                 field_size=[50, 50],
+                 field_size=[100, 100],
                  field_vel=[-0.2, 0.2],
                  grid_size=[0.8, 0.8],
-                 dest_position=[42, 42],
+                 dest_position=[95, 95],
                  init_position=[10, 10],
-                 view_scope_size=5,
-                 static_field=True):
+                 view_scope_size=11,
+                 static_field=False):
+
+
 
         self.static_field = static_field
 
@@ -44,11 +46,11 @@ class AdvectionDiffusionFieldEnv(gym.Env):
 
         self.min_r_x = 0
         self.max_r_x = field_size[1]
-        
+
         self.min_r_y = 0
         self.max_r_y = field_size[0]
 
-        if not self.static_field:        
+        if not self.static_field:
             self.min_z_dot = -7
             self.max_z_dot = 7
 
@@ -121,10 +123,10 @@ class AdvectionDiffusionFieldEnv(gym.Env):
             print(self.num_actions)
             self.render()
             if not self.static_field:
-                return [0, 0, 0, 0, 0, 0], -400, True
+                return [0, 0, 0, 0, 0, 0], -4000000, True
             else:
-                return [0, 0, 0, 0, 0], -400, True
-        
+                return [0, 0, 0, 0, 0], -400000, True
+
 
         # Update the field
         self.experiment.update_field()
@@ -157,10 +159,10 @@ class AdvectionDiffusionFieldEnv(gym.Env):
             print("Number of steps exceeded")
             self.render()
             done = True
-            reward = -10000
+            reward = -100000
 
         return state_vector, reward, done
-        
+
 
     def reset(self):
         self.r = self.experiment.reset_init_position()
@@ -170,7 +172,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
         self.step_count = 0
         self.episode_num += 1
         return state_vector
-        
+
     def render(self, mode='human', close=False):
         print("Render")
         # self.experiment.show_field_in_loop()

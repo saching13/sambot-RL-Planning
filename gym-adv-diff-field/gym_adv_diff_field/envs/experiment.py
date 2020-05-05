@@ -300,8 +300,8 @@ class Experiment:
         return (z_k1 - z_k) / self.dt
 
     def get_gradient(self, r):
-        dz_dy = (self.curr_field[r[1] + 1, r[0]] - self.curr_field[r[1] - 1, r[0]]) / (2 * ((r[1] + 1) - (r[1] - 1)))
-        dz_dx = (self.curr_field[r[1], r[0] + 1] - self.curr_field[r[1], r[0] - 1]) / (2 * ((r[0] + 1) - (r[0] - 1)))
+        dz_dy = (self.curr_field[r[1] + 1, r[0]] - self.curr_field[r[1] - 1, r[0]]) / (((r[1] + 1) - (r[1] - 1)) * self.dy)
+        dz_dx = (self.curr_field[r[1], r[0] + 1] - self.curr_field[r[1], r[0] - 1]) / (((r[0] + 1) - (r[0] - 1)) * self.dx)
     
         return np.array([dz_dx, dz_dy]) / np.linalg.norm([dz_dx, dz_dy])
 

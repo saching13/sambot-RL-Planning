@@ -12,8 +12,8 @@ class StaticExperiment:
             self,
             field_size=[50, 50],
             grid_size=[0.8, 0.8],
-            init_position=[10, 10],
-            dest_position=[90, 90],
+            init_position=[5, 5],
+            dest_position=[42, 42],
             view_scope_size=5,
             weights=[1, 1, 10]):
 
@@ -215,8 +215,9 @@ class StaticExperiment:
         pass
 
     def get_gradient(self, r):
-        dz_dy = (self.curr_field[r[1] + 1, r[0]] - self.curr_field[r[1] - 1, r[0]]) / (2 * ((r[1] + 1) - (r[1] - 1)))
-        dz_dx = (self.curr_field[r[1], r[0] + 1] - self.curr_field[r[1], r[0] - 1]) / (2 * ((r[0] + 1) - (r[0] - 1)))
+
+        dz_dx = (self.curr_field[r[1], r[0] + 1] - self.curr_field[r[1], r[0] - 1]) / (2 * self.dx)
+        dz_dy = (self.curr_field[r[1] + 1, r[0]] - self.curr_field[r[1] - 1, r[0]]) / (2 * self.dy)
     
         return np.array([dz_dx, dz_dy]) / np.linalg.norm([dz_dx, dz_dy])
 

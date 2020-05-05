@@ -10,14 +10,15 @@ import numpy as np
 import pickle
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 4000
-NUM_TEST_EPISODES = 100
+MAX_NUM_EPISODES = 100000
+NUM_TEST_EPISODES = 500
 STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 EPSILON_DECAY = 500 * EPSILON_MIN / max_num_steps
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
+SCALAR_FIELD = True
 # NUM_DISCRETE_BINS = 100  # Number of bins to Discretize each observation dim
 
 
@@ -77,7 +78,6 @@ class Q_Learner(object):
                 if value > maxValue:
                     maxArg = action
                     maxValue = value
-
             if arg:
                 return maxArg
             else:
@@ -164,7 +164,6 @@ def get_policy_action(agent, obs, policy):
         print("state not found in Policy")
         return 0;
 
-
 def test(agent, env, policy):
     done = False
     obs = env.reset()
@@ -178,8 +177,30 @@ def test(agent, env, policy):
 
 
 if __name__ == "__main__":
-    env = gym.make('adv-diff-field-v0')
-    agent = Q_Learner(env, scalar_field=True)
+    
+    # Dynamic Field
+    if not SCALAR_FIELD:
+        env = gym.make('adv-diff-field-v0',
+                    field_size=[100, 100],
+                    field_vel=[-0.2, 0.2],
+                    grid_size=[0.8, 0.8],
+                    dest_position=[95, 95],
+                    init_position=[10, 10],
+                    view_scope_size=11,
+                    static_field=False)
+
+# Static field
+    else:
+        env = gym.make('adv-diff-field-v0',
+                field_size=[50, 50],
+                field_vel=[-0.2, 0.2],
+                grid_size=[0.8, 0.8],
+                dest_position=[42, 42],
+                init_position=[10, 10],
+                view_scope_size=5,
+                static_field=True)
+    
+    agent = Q_Learner(env, scalar_field=SCALAR_FIELD)
     learned_policy = train(agent, env)
     with open("learned_policy.txt", 'wb') as policy_file:
         pickle.dump(learned_policy, policy_file)
@@ -188,5 +209,5 @@ if __name__ == "__main__":
     # env = gym.wrappers.Monitor(env, gym_monitor_path, force=True)
     for episode in range(NUM_TEST_EPISODES):
         reward = test(agent, env, learned_policy)
-        print("Test Episode#:{} reward:{}".format(episode,reward) )
+        print("Test Episode#:{} reward:{}".format(episode,reward))
     env.close()
