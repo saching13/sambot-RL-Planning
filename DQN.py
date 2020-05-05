@@ -15,26 +15,35 @@ from tqdm import tqdm
 import random
 import tensorflow as tf
 
-DISCOUNT = 0.99
-REPLAY_MEMORY_SIZE = 50_000  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
-MINIBATCH_SIZE = 64  # How many steps (samples) to use for training
-UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
-MODEL_NAME = '2x256'
-MIN_REWARD = -200  # For model save
-MEMORY_FRACTION = 0.20
 
-# Environment settings
-EPISODES = 4000
+MAX_NUM_EPISODES = 100000
+NUM_TEST_EPISODES = 500
+STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
+
+ALPHA = 0.05  # Learning rate
+GAMMA = 0.98  # Discount factor
+SCALAR_FIELD = True
 
 # Exploration settings
 epsilon = 1  # not a constant, going to be decayed
 EPSILON_DECAY = 0.99975
-MIN_EPSILON = 0.001
+EPSILON_MIN = 0.002
+
+max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
+EPSILON_DECAY = 700 * EPSILON_MIN / max_num_steps
+
+DISCOUNT = 0.99
+REPLAY_MEMORY_SIZE = 10000  # How many last steps to keep for model training
+MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 64  # How many steps (samples) to use for training
+UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
+# MODEL_NAME = '2x256'
+
+MEMORY_FRACTION = 0.20
+MODEL_NAME = "SamBot"
 
 #  Stats settings
-AGGREGATE_STATS_EVERY = 50  # episodes
-SHOW_PREVIEW = False
+# AGGREGATE_STATS_EVERY = 50  # episodes
 
 # Dynamic Field
 # env = gym.make('adv-diff-field-v0',
@@ -72,8 +81,7 @@ class DQNAgent:
     def __init__(self):
 
         # Main model
-        self. \
-            model = self.create_model()
+        self.model = self.create_model()
 
         # Target network
         self.target_model = self.create_model()
@@ -81,14 +89,13 @@ class DQNAgent:
 
         # An array with last n steps for training
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
-        print(id(self.model))
-        print(id(self.target_model))
+
         # Used to count when to update target network with main network's weights
         self.target_update_counter = 0
 
     def create_model(self):
         model = Sequential()
-        model.add(Dense(32, kernel_initializer='random_normal', input_dim=6))
+        model.add(Dense(32, kernel_initializer='random_normal', input_dim=env.observation_space.shape[0]))
         model.add(Activation("relu"))
         model.add(Dropout(0.2))
 
@@ -178,12 +185,10 @@ agent = DQNAgent()
 best_reward = -float('inf')
 
 # Iterate over episodes
-for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
+for episode in tqdm(range(1, MAX_NUM_EPISODES + 1), ascii=True, unit='episodes'):
     # Restarting episode - reset episode reward and step number
     episode_reward = 0
     step = 1
-    if episode % 1000 == 0:
-        print(episode, "---------->")
 
     # Reset environment and get initial state
     current_state = env.reset()
@@ -192,6 +197,8 @@ for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
     done = False
     while not done:
         # This part stays mostly the same, the change is to query a model for Q values
+        if epsilon > EPSILON_MIN:
+            epsilon -= EPSILON_DECAY
         if np.random.random() > epsilon:
             # Get action from Q table
             action = np.argmax(agent.get_qs(current_state))
@@ -213,9 +220,10 @@ for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
 
     if total_reward > best_reward:
         best_reward = total_reward
-    print("Episode#:{} reward:{} best_reward:{} eps:{}".format(episode, total_reward, best_reward, epsilon))
+        agent.model.save(f'models/{MODEL_NAME}__best_reward__{best_reward:_>7.2f}.model')
+    print("Episode#:{} reward:{} best_reward:{} eps:{}".format(episode,total_reward, best_reward, epsilon))
 
-    # Decay epsilon
-    if epsilon > MIN_EPSILON:
-        epsilon *= EPSILON_DECAY
-        epsilon = max(MIN_EPSILON, epsilon)
+    # # Decay epsilon
+    # if epsilon > MIN_EPSILON:
+    #     epsilon *= EPSILON_DECAY
+    #     epsilon = max(MIN_EPSILON, epsilon)

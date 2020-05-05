@@ -148,7 +148,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
 
         # print("reward: ", reward)
         if self.r == self.experiment.dest_position:
-            reward = 1000
+            reward = 100000000
             done = True
             print(self.num_actions)
             self.render()
