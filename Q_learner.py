@@ -10,8 +10,8 @@ import numpy as np
 import pickle
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 10
-NUM_TEST_EPISODES = 10
+MAX_NUM_EPISODES = 4000
+NUM_TEST_EPISODES = 100
 STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
@@ -71,20 +71,22 @@ class Q_Learner(object):
         # actions = self.Q[discretized_obs] if discretized_obs in self.Q else {}
         try:
             actions = self.Q[tuple(discretized_obs)]
+            maxArg = 0
+            maxValue = -float('inf')
+            for action, value in actions.items():
+                if value > maxValue:
+                    maxArg = action
+                    maxValue = value
+
+            if arg:
+                return maxArg
+            else:
+                return maxValue if maxValue != -float('inf') else 0
         except KeyError:
-            return np.random.choice([a for a in range(self.action_shape)])
-
-        maxArg = 0
-        maxValue = -float('inf')
-        for action, value in actions.items():
-            if value > maxValue:
-                maxArg = action
-                maxValue = value
-
-        if arg:
-            return maxArg
-        else:
-            return maxValue if maxValue != -float('inf') else 0
+            if arg:
+                return np.random.choice([a for a in range(self.action_shape)])
+            else:
+                return 0
 
     def get_action(self, obs):
         discretized_obs = self.discretize_state_vector(obs)
