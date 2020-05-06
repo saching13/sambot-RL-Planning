@@ -30,7 +30,7 @@ EPSILON_DECAY = 0.99975
 EPSILON_MIN = 0.002
 
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
-EPSILON_DECAY = 700 * EPSILON_MIN / max_num_steps
+EPSILON_DECAY = 400 * EPSILON_MIN / max_num_steps
 
 DISCOUNT = 0.99
 REPLAY_MEMORY_SIZE = 10000  # How many last steps to keep for model training
@@ -68,7 +68,7 @@ env = gym.make('adv-diff-field-v0',
 ACTION_SPACE_SIZE = env.action_space.n
 
 # For stats
-ep_rewards = [-200]
+# ep_rewards = [-200]
 
 
 # For more repetitive results
@@ -183,8 +183,20 @@ class DQNAgent:
 
 agent = DQNAgent()
 best_reward = -float('inf')
-
+obs_high = env.observation_space.high
+obs_low = env.observation_space.low
 # Iterate over episodes
+
+def normalize_state(obs):
+    normalized_obs = []
+    for i, value in enumerate(obs):
+        normalized_value = (value - obs_low[i]) / (obs_high[i] - obs_low[i])
+        normalized_obs.append(normalized_value)
+    x = np.asarray(normalized_obs)
+    # print(x.shape)
+    return (normalized_obs)
+
+
 for episode in tqdm(range(1, MAX_NUM_EPISODES + 1), ascii=True, unit='episodes'):
     # Restarting episode - reset episode reward and step number
     episode_reward = 0
@@ -195,6 +207,7 @@ for episode in tqdm(range(1, MAX_NUM_EPISODES + 1), ascii=True, unit='episodes')
     total_reward = 0.0
     # Reset flag and start iterating until episode ends
     done = False
+    normalized_curr_state = normalize_state(current_state)
     while not done:
         # This part stays mostly the same, the change is to query a model for Q values
         if epsilon > EPSILON_MIN:
@@ -212,9 +225,12 @@ for episode in tqdm(range(1, MAX_NUM_EPISODES + 1), ascii=True, unit='episodes')
         # Transform new continous state to new discrete state and count reward
         episode_reward += reward
         # Every step we update replay memory and train main network
-        agent.update_replay_memory((current_state, action, reward, new_state, done))
+        normalized_new_state = normalize_state(new_state)
+
+        agent.update_replay_memory((normalized_curr_state, action, reward, normalized_new_state, done))
         agent.train(done, step)
         current_state = new_state
+        normalized_curr_state = normalized_new_state
         step += 1
         total_reward += reward
 
