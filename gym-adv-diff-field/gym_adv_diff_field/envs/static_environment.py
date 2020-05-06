@@ -37,7 +37,7 @@ class StaticExperiment:
 
         self.curr_field = self.create_field()
         self.prev_field = np.zeros(field_size)
-
+        self.plot_reward()
         self.trajectory = []
 
         # Display
@@ -114,6 +114,27 @@ class StaticExperiment:
         field_normalized = (field - min_val) / (max_val - min_val)
         return field_normalized
 
+
+    def plot_reward(self):
+        curr_reward = np.zeros(self.curr_field.shape)
+        for index, value in np.ndenumerate(self.curr_field):
+            self.copy_view_scope([index[1], index[0]])
+            curr_reward[index] = self.calculate_reward_1(index)
+        print(f"Current max reward------------> :{curr_reward.max()}")
+        print(curr_reward[(40,40)])
+        fig = plt.figure(figsize=(8, 8))
+        fig_ax1 = fig.add_subplot(111)
+        fig_ax1.set_title('reward State')
+        fig_ax1.set_aspect('equal')
+
+        fig_ax1.imshow(curr_reward, cmap="Blues", origin=(100, 0))
+
+        path = "./"
+        plt.savefig(path + f"reward_weight{self.k2}_{self.k3}" + ".png")
+        # print("<<<<<<<<<<<<<<<<<<<<< Iter:" + str(num) + " Image Saved! >>>>>>>>>>>>>>>>>>>>>>>")
+        plt.close(fig=fig)
+
+
     def copy_view_scope(self, r):
         scope_range = self.view_scope_size // 2;
 
@@ -158,7 +179,9 @@ class StaticExperiment:
         1. Mapping error only measuremnet + ZMF
         """
         mapping_error = self.get_normalized_view_scope_at(r)
-        zmf_error = self.zmf(mapping_error, 0, 1)
+        # zmf_error = self.zmf(mapping_error, 0, 1)
+        zmf_error = mapping_error
+
         dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
         print(f"Rewards: {zmf_error}, {dist_to_goal}")
         return (self.k2 * zmf_error - self.k3 * dist_to_goal)

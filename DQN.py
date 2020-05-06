@@ -60,9 +60,9 @@ env = gym.make('adv-diff-field-v0',
                field_size=[50, 50],
                field_vel=[-0.2, 0.2],
                grid_size=[0.8, 0.8],
-               dest_position=[42, 42],
+               dest_position=[40, 40],
                init_position=[10, 10],
-               view_scope_size=5,
+               view_scope_size=11,
                static_field=True)
 
 ACTION_SPACE_SIZE = env.action_space.n

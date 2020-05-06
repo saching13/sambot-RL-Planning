@@ -39,7 +39,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
                 init_position=init_position,
                 dest_position=dest_position,
                 view_scope_size=view_scope_size,
-                weights=[1, 1, 10])
+                weights=[1, 47, 4])
 
         self.min_field_value = 0
         self.max_field_value = 21
