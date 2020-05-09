@@ -10,19 +10,19 @@ import numpy as np
 import pickle
 
 # MAX_NUM_EPISODES = 500
-MAX_NUM_EPISODES = 100000
-NUM_TEST_EPISODES = 500
+MAX_NUM_EPISODES = 50000
+NUM_TEST_EPISODES = 1000
 STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
 EPSILON_MIN = 0.005
 max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
-EPSILON_DECAY = 400 * EPSILON_MIN / max_num_steps
+EPSILON_DECAY = 500 * EPSILON_MIN / max_num_steps
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 SCALAR_FIELD = True
 # NUM_DISCRETE_BINS = 100  # Number of bins to Discretize each observation dim
 
 
-discreteBins_r = 100
+discreteBins_r = 50
 discreteBins_FieldValue = 420
 discreteBins_z_grad = 20
 discreteBins_z_dot = 300
@@ -31,9 +31,10 @@ discreteBins_z_dot = 300
 class Q_Learner(object):
     def __init__(self, env, scalar_field=False):
         self.scalar_field = scalar_field
-        self.obs_shape = env.observation_space.shape
-        self.obs_high = env.observation_space.high
-        self.obs_low = env.observation_space.low
+        # self.obs_shape = env.observation_space.shape
+        self.obs_shape = (2,)
+        self.obs_high = env.observation_space.high[:2]
+        self.obs_low = env.observation_space.low[:2]
         # self.obs_bins = NUM_DISCRETE_BINS  # Number of bins to Discretize each observation dim
         self.bin_width = self.create_obs_state_bins(self.obs_high - self.obs_low)
         self.action_shape = env.action_space.n
@@ -48,14 +49,14 @@ class Q_Learner(object):
 
     def create_obs_state_bins(self, space):
         binWidth_r = space[0] / discreteBins_r
-        binWidth_fieldValue = space[2] / discreteBins_FieldValue
-        binWidth_z_grad = space[3] / discreteBins_z_grad
+        # binWidth_fieldValue = space[2] / discreteBins_FieldValue
+        # binWidth_z_grad = space[3] / discreteBins_z_grad
 
         if not self.scalar_field:
             binWidth_z_dot = space[5] / discreteBins_z_dot
-            return [binWidth_r, binWidth_r, binWidth_fieldValue, binWidth_z_grad, binWidth_z_grad, binWidth_z_dot]
+            return [binWidth_r, binWidth_r]
         else:
-            return [binWidth_r, binWidth_r, binWidth_fieldValue, binWidth_z_grad, binWidth_z_grad]
+            return [binWidth_r, binWidth_r]
 
     def discretize_state_vector(self, state_vector):
         # state vector = [r_x, r_y, z_r, z_grad_x, z_grad_y, z_dot]
@@ -124,12 +125,14 @@ def train(agent, env):
     for episode in range(MAX_NUM_EPISODES):
         done = False
         obs = env.reset()
+        obs = obs[:2]
         total_reward = 0.0
         if episode % 1000 == 0:
             print(episode, "---------->")
         while not done:
             action = agent.get_action(obs)
             next_obs, reward, done = env.step(action)
+            next_obs = next_obs[:2]
             agent.learn(obs, action, reward, next_obs)
             obs = next_obs
             total_reward += reward
@@ -196,14 +199,14 @@ if __name__ == "__main__":
                 field_size=[50, 50],
                 field_vel=[-0.2, 0.2],
                 grid_size=[0.8, 0.8],
-                dest_position=[42, 42],
+                dest_position=[40, 40],
                 init_position=[10, 10],
-                view_scope_size=5,
+                view_scope_size=11,
                 static_field=True)
     
     agent = Q_Learner(env, scalar_field=SCALAR_FIELD)
     learned_policy = train(agent, env)
-    with open("learned_policy.txt", 'wb') as policy_file:
+    with open("learned_policy_without_minus_30.txt", 'wb') as policy_file:
         pickle.dump(learned_policy, policy_file)
     # Use the Gym Monitor wrapper to evalaute the agent and record video
     # gym_monitor_path = "./gym_monitor_output"

@@ -121,16 +121,16 @@ class StaticExperiment:
             self.copy_view_scope([index[1], index[0]])
             curr_reward[index] = self.calculate_reward_1(index)
         print(f"Current max reward------------> :{curr_reward.max()}")
-        print(curr_reward[(40,40)])
+        print(curr_reward[(40, 40)])
         fig = plt.figure(figsize=(8, 8))
         fig_ax1 = fig.add_subplot(111)
-        fig_ax1.set_title('reward State')
+        fig_ax1.set_title('Reward = (k2 * normalized_map - k3 * dist_to_goal)')
         fig_ax1.set_aspect('equal')
 
         fig_ax1.imshow(curr_reward, cmap="Blues", origin=(100, 0))
 
         path = "./"
-        plt.savefig(path + f"reward_weight{self.k2}_{self.k3}" + ".png")
+        plt.savefig(path + f"reward_normal_{self.k2}_{self.k3}" + ".png")
         # print("<<<<<<<<<<<<<<<<<<<<< Iter:" + str(num) + " Image Saved! >>>>>>>>>>>>>>>>>>>>>>>")
         plt.close(fig=fig)
 
@@ -183,9 +183,11 @@ class StaticExperiment:
         zmf_error = mapping_error
 
         dist_to_goal = np.linalg.norm(np.array(r) - np.array(self.dest_position))
-        print(f"Rewards: {zmf_error}, {dist_to_goal}")
+        # print(f"Rewards: {zmf_error}, {dist_to_goal}")
+        # return (self.k2 * zmf_error - self.k3 * dist_to_goal - 30.4)
         return (self.k2 * zmf_error - self.k3 * dist_to_goal)
-    
+        # return (self.k2 * zmf_error - self.k3 * dist_to_goal)/self.k2 # Try dividing by 47
+
     def calculate_reward_2(self, r): # Option 2
         """
         2. Mapping error only measuremnet + negation
@@ -273,7 +275,7 @@ class StaticExperiment:
         # Plot trajectory
         traj_r = [p[0] for p in self.trajectory]
         traj_c = [p[1] for p in self.trajectory]
-        fig_ax1.plot(traj_r, traj_c, 'o', color='black')
+        fig_ax1.plot(traj_r, traj_c, 'o', color='black', linewidth=1)
 
         # Plot starting position
         fig_ax1.plot(self.init_position[0], self.init_position[1], '*')
@@ -296,9 +298,10 @@ class StaticExperiment:
         # Plot ending position
         fig_ax2.plot(self.dest_position[0], self.dest_position[1], '*', color='red')
 
-        path = "./images/"
+        path = "./images_div47/"
         plt.savefig(path + str(num) + ".png")
         print("<<<<<<<<<<<<<<<<<<<<< Iter:" + str(num) + " Image Saved! >>>>>>>>>>>>>>>>>>>>>>>")
         plt.close(fig=fig)
 
         # TODO(deepak): Add title, time instant etc
+

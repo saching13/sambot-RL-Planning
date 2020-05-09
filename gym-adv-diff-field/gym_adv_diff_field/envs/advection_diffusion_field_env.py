@@ -123,9 +123,9 @@ class AdvectionDiffusionFieldEnv(gym.Env):
             print(self.num_actions)
             self.render()
             if not self.static_field:
-                return [0, 0, 0, 0, 0, 0], -4000000, True
+                return [0, 0, 0, 0, 0, 0], -2000, True
             else:
-                return [0, 0, 0, 0, 0], -400000, True
+                return [0, 0, 0, 0, 0], -2000, True
 
 
         # Update the field
@@ -148,7 +148,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
 
         # print("reward: ", reward)
         if self.r == self.experiment.dest_position:
-            reward = 100000000
+            reward = 1000
             done = True
             print(self.num_actions)
             self.render()
@@ -159,7 +159,7 @@ class AdvectionDiffusionFieldEnv(gym.Env):
             print("Number of steps exceeded")
             self.render()
             done = True
-            reward = -100000
+            reward = -2000
 
         return state_vector, reward, done
 

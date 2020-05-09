@@ -20,8 +20,7 @@ MAX_NUM_EPISODES = 10000
 NUM_TEST_EPISODES = 500
 STEPS_PER_EPISODE = 300  # This is specific to MountainCar. May change with env
 
-ALPHA = 0.05  # Learning rate
-GAMMA = 0.98  # Discount factor
+
 SCALAR_FIELD = True
 
 # Exploration settings
@@ -82,7 +81,8 @@ class DQNAgent:
     def __init__(self):
         with tf.device('/GPU:0'):
         # Main model
-            self.model = self.create_model()
+            self.model = tf.keras.models.load_model('SamBot_final.model')
+
     
             # Target network
             self.target_model = self.create_model()
@@ -185,7 +185,6 @@ class DQNAgent:
             my_state = np.asarray(state)
             return self.model.predict(np.array(my_state).reshape(-1, *my_state.shape))
             # return self.model.predict(np.array(state).reshape(-1, *state.shape))
-
 
 agent = DQNAgent()
 best_reward = -float('inf')
